@@ -1,6 +1,7 @@
 from neo4j_graphrag.retrievers import VectorCypherRetriever
 from neo4j_graphrag.generation import GraphRAG
 from sentence_transformers import CrossEncoder
+import os
 
 # 1. Initialize a Cross-Encoder Reranker
 reranker = CrossEncoder('BAAI/bge-reranker-base')
@@ -47,7 +48,7 @@ RETURN node.Job_Description AS content,
 """
 llm = OpenRouterLLM(
     model_name="mistralai/devstral-2512:free", 
-    api_key="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",
+    api_key=os.getenv("OPENROUTER_API_KEY"),
 )
 
 custom_template = JobRerankTemplate()
