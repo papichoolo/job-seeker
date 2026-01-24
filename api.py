@@ -103,7 +103,7 @@ def extract_profile_from_text(resume_text: str) -> dict:
     return json.loads(response.choices[0].message.content)
 
 
-def get_top_jobs(user_profile: dict, top_k: int = 20, top_n: int = 5) -> list:
+def get_top_jobs(user_profile: dict, top_k: int = 20, top_n: int = 10) -> list:
     """Search and rerank jobs for a user profile."""
     # Search with vector retrieval
     search_result = retriever.search(
@@ -199,11 +199,11 @@ async def upload_profile(file: UploadFile = File(...)):
 @app.post("/jobs/match", response_model=JobMatchResponse)
 async def match_jobs(profile: UserProfile):
     """
-    Get top 5 job matches for a user profile.
+    Get top 10 job matches for a user profile.
     
     - **profile**: User profile with skills, experience, and preferences
     
-    Returns top 5 jobs ranked by relevance score.
+    Returns top 10 jobs ranked by relevance score.
     """
     try:
         profile_dict = profile.model_dump()

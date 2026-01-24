@@ -1,3 +1,4 @@
+# Python
 __pycache__/
 venv/
 index.py 
@@ -7,3 +8,16 @@ lul.py
 *.csv
 *.pdf
 .env
+
+# Next.js Frontend
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.env.local
+frontend/.env*.local
+frontend/npm-debug.log*
+frontend/.vercel
+
+# IDE
+.vscode/
+.idea/
