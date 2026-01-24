@@ -1,0 +1,9 @@
+__pycache__/
+venv/
+index.py 
+lol.py 
+lul.py 
+*.ipynb
+*.csv
+*.pdf
+.env
