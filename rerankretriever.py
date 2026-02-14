@@ -31,7 +31,7 @@ class JobRerankTemplate(RagTemplate):
       "justification": "string"
     }}
     """
-from openroutercustom import OpenRouterLLM
+
 
 driver = GraphDatabase.driver(URI, auth=AUTH)
 
@@ -46,10 +46,7 @@ RETURN node.Job_Description AS content,
        node { .Job_Title, .Annual_Salary_USD, .id, jobSkills: jobSkills } AS metadata, 
        score
 """
-llm = OpenRouterLLM(
-    model_name="mistralai/devstral-2512:free", 
-    api_key=os.getenv("OPENROUTER_API_KEY"),
-)
+
 
 custom_template = JobRerankTemplate()
 

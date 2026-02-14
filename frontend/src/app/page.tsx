@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { DropZone } from '@/components/DropZone';
 import { ProcessingOverlay } from '@/components/ProcessingOverlay';
 import { ProfileDashboard } from '@/components/ProfileDashboard';
 import { JobGrid } from '@/components/JobGrid';
-import { uploadResume, matchJobs } from '@/lib/api';
+import { uploadResumeSSE, matchJobs } from '@/lib/api';
 import { UserProfile, JobMatch, AppPhase } from '@/types';
 import { ArrowLeft, Briefcase, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,20 +18,61 @@ export default function Home() {
   const [jobs, setJobs] = useState<JobMatch[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  // SSE streaming state
+  const [thinkingText, setThinkingText] = useState('');
+  const [contentText, setContentText] = useState('');
+  const [processingStatus, setProcessingStatus] = useState<'uploading' | 'processing' | 'complete' | 'error'>('processing');
+  const cleanupRef = useRef<(() => void) | null>(null);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cleanupRef.current?.();
+    };
+  }, []);
+
   const handleFileSelect = async (file: File) => {
     setError(null);
     setIsProcessing(true);
+    setThinkingText('');
+    setContentText('');
+    setProcessingStatus('uploading');
 
     try {
-      const response = await uploadResume(file);
-      if (response.success) {
-        setProfile(response.profile);
-        setPhase('profile');
-      }
+      setProcessingStatus('processing');
+
+      const cleanup = await uploadResumeSSE(file, {
+        onThinking: (chunk) => {
+          setThinkingText(prev => prev + chunk);
+        },
+        onContent: (chunk) => {
+          setContentText(prev => prev + chunk);
+        },
+        onComplete: (profileData) => {
+          setProcessingStatus('complete');
+          setProfile(profileData);
+          // Small delay to show completion state
+          setTimeout(() => {
+            setIsProcessing(false);
+            setPhase('profile');
+          }, 500);
+        },
+        onError: (errorMsg) => {
+          setProcessingStatus('error');
+          setError(errorMsg);
+          setTimeout(() => {
+            setIsProcessing(false);
+          }, 1000);
+        }
+      });
+
+      cleanupRef.current = cleanup;
     } catch (err) {
+      setProcessingStatus('error');
       setError(err instanceof Error ? err.message : 'Failed to upload resume');
-    } finally {
-      setIsProcessing(false);
+      setTimeout(() => {
+        setIsProcessing(false);
+      }, 1000);
     }
   };
 
@@ -174,7 +215,12 @@ export default function Home() {
         </div>
 
         {/* Processing overlay */}
-        <ProcessingOverlay isOpen={isProcessing} />
+        <ProcessingOverlay
+          isOpen={isProcessing}
+          thinkingText={thinkingText}
+          contentText={contentText}
+          status={processingStatus}
+        />
       </div>
     </main>
   );

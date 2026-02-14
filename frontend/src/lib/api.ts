@@ -1,6 +1,6 @@
 // API client for FastAPI backend
 
-import { ProfileResponse, JobMatchResponse, UserProfile } from '@/types';
+import { ProfileResponse, JobMatchResponse, UserProfile, SSECallbacks } from '@/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -37,3 +37,71 @@ export async function matchJobs(profile: UserProfile): Promise<JobMatchResponse>
 
     return response.json();
 }
+
+/**
+ * SSE-based resume upload with real-time streaming.
+ * Uploads file, then opens EventSource to stream LLM output.
+ * @returns cleanup function to close the EventSource
+ */
+export async function uploadResumeSSE(file: File, callbacks: SSECallbacks): Promise<() => void> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // Step 1: Upload file and get session ID
+    const uploadResponse = await fetch(`${API_BASE_URL}/upload`, {
+        method: 'POST',
+        body: formData,
+    });
+
+    if (!uploadResponse.ok) {
+        const error = await uploadResponse.json();
+        throw new Error(error.detail || 'Failed to upload resume');
+    }
+
+    const { session_id } = await uploadResponse.json();
+
+    // Step 2: Open SSE stream
+    const eventSource = new EventSource(`${API_BASE_URL}/stream/${session_id}`);
+
+    eventSource.onmessage = (event) => {
+        if (event.data === '[DONE]') {
+            eventSource.close();
+            return;
+        }
+
+        try {
+            const parsed = JSON.parse(event.data);
+
+            if (parsed.type === 'thought') {
+                callbacks.onThinking?.(parsed.chunk);
+            } else if (parsed.type === 'content') {
+                callbacks.onContent?.(parsed.chunk);
+            } else if (parsed.type === 'final') {
+                const finalData = parsed.data || parsed.raw;
+                if (typeof finalData === 'object') {
+                    callbacks.onComplete(finalData as UserProfile);
+                } else {
+                    // Try to parse raw string
+                    try {
+                        callbacks.onComplete(JSON.parse(finalData) as UserProfile);
+                    } catch {
+                        callbacks.onError('Invalid profile data received');
+                    }
+                }
+            } else if (parsed.type === 'error') {
+                callbacks.onError(parsed.message);
+            }
+        } catch (err) {
+            console.error('SSE parse error:', err);
+        }
+    };
+
+    eventSource.onerror = () => {
+        eventSource.close();
+        callbacks.onError('Connection lost during processing');
+    };
+
+    // Return cleanup function
+    return () => eventSource.close();
+}
+

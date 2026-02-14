@@ -33,3 +33,11 @@ export interface ProcessingStep {
     label: string;
     status: 'pending' | 'active' | 'complete';
 }
+
+// SSE streaming callbacks
+export interface SSECallbacks {
+    onThinking?: (chunk: string) => void;
+    onContent?: (chunk: string) => void;
+    onComplete: (profile: UserProfile) => void;
+    onError: (error: string) => void;
+}
