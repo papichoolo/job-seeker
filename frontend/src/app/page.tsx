@@ -210,7 +210,7 @@ export default function Home() {
           )}
 
           {phase === 'results' && (
-            <JobGrid jobs={jobs} isLoading={isSearching} />
+            <JobGrid jobs={jobs} isLoading={isSearching} profile={profile} />
           )}
         </div>
 

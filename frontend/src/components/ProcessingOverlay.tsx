@@ -85,7 +85,7 @@ export function ProcessingOverlay({
                         </div>
                         <div
                             ref={thinkingRef}
-                            className="flex-1 p-4 overflow-auto bg-neutral-950 font-mono text-xs leading-relaxed"
+                            className="flex-1 min-h-0 p-4 overflow-y-auto bg-neutral-950 font-mono text-xs leading-relaxed"
                         >
                             {thinkingText ? (
                                 <pre className="whitespace-pre-wrap text-green-400/80">{thinkingText}</pre>
@@ -105,7 +105,7 @@ export function ProcessingOverlay({
                         </div>
                         <div
                             ref={contentRef}
-                            className="flex-1 p-4 overflow-auto bg-neutral-900/50 font-mono text-xs leading-relaxed"
+                            className="flex-1 min-h-0 p-4 overflow-y-auto bg-neutral-900/50 font-mono text-xs leading-relaxed"
                         >
                             {contentText ? (
                                 <pre className="whitespace-pre-wrap text-blue-300">{contentText}</pre>

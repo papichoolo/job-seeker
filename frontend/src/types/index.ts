@@ -14,8 +14,11 @@ export interface ProfileResponse {
 
 export interface JobMatch {
     job_id: string | null;
+    company: string | null;
     title: string | null;
     salary: number | null;
+    job_url: string | null;
+    job_skills: string[] | null;
     score: number;
     description: string | null;
 }

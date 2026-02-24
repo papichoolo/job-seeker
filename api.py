@@ -71,6 +71,7 @@ class JobMatch(BaseModel):
     title: Optional[str] = None
     salary: Optional[int] = None
     job_url: Optional[str] = None
+    job_skills: Optional[List[str]] = None
     score: float
     description: Optional[str] = None
 
@@ -117,6 +118,24 @@ def extract_profile_from_text(resume_text: str) -> dict:
     return json.loads(response.choices[0].message.content)
 
 
+import re
+
+def clean_description(raw: str) -> str:
+    """Extract readable description from raw Record content string."""
+    if not raw:
+        return ""
+    text = raw
+    # Strip <Record content='...' metadata={...} score=...> wrapper if present
+    record_match = re.search(r"content=['\"](.+?)['\"]\s*metadata=", text, re.DOTALL)
+    if record_match:
+        text = record_match.group(1)
+    # Remove the [Skills: ...] prefix
+    text = re.sub(r'^\[Skills?:\s*[^\]]*\]\s*', '', text, flags=re.IGNORECASE)
+    # Remove trailing metadata-like fragments
+    text = re.sub(r'Category:\s*\S+\s*$', '', text).strip()
+    return text or raw
+
+
 def get_top_jobs(user_profile: dict, top_k: int = 20, top_n: int = 10) -> list:
     """Search and rerank jobs for a user profile."""
     # Search with vector retrieval
@@ -150,14 +169,17 @@ def get_top_jobs(user_profile: dict, top_k: int = 20, top_n: int = 10) -> list:
     final_results = []
     for score, item in zip(scores, candidates):
         m = item.metadata or {}
+        # Get content as string, handle various object types
+        raw_content = str(item.content) if item.content else ""
         final_results.append({
             "job_id": m.get("id"),
             "company": m.get("company"),
             "title": m.get("Job_Title"),
             "salary": m.get("Annual_Salary_USD"),
             "job_url": m.get("Job_URL"),
+            "job_skills": m.get("jobSkills", []),
             "score": float(score),
-            "description": item.content
+            "description": clean_description(raw_content)
         })
     
     return sorted(final_results, key=lambda x: x["score"], reverse=True)[:top_n]
@@ -429,9 +451,129 @@ async def get_result(session_id: str):
     
     return result
 
+# ========== Job Explanation SSE Endpoint ==========
+
+class ExplainRequest(BaseModel):
+    profile: UserProfile
+    job: JobMatch
+
+
+async def generate_explanation_stream(profile: UserProfile, job: JobMatch) -> AsyncGenerator[str, None]:
+    """Generates SSE events explaining why a job was recommended for a user profile."""
+    import httpx
+
+    # Build a concise context for the LLM
+    profile_summary = (
+        f"Candidate skills: {', '.join(profile.skills)}. "
+        f"Experience: {profile.experience_years} years. "
+        f"Location preference: {profile.location_pref or 'Any'}. "
+        f"Summary: {profile.summary or 'N/A'}"
+    )
+
+    job_summary = (
+        f"Job title: {job.title or 'Unknown'}. "
+        f"Company: {job.company or 'Unknown'}. "
+        f"Required skills: {', '.join(job.job_skills) if job.job_skills else 'Not specified'}. "
+        f"Description: {job.description or 'N/A'}"
+    )
+
+    prompt = """You are a career advisor AI. Given a candidate's profile and a job listing, write a concise 60-80 word paragraph explaining why this job is a strong match for the candidate. Focus on specific skill overlaps, relevant experience, and career fit. Be encouraging but honest. Do not use bullet points — write a single flowing paragraph. Do not use markdown formatting."""
+
+    user_msg = f"CANDIDATE PROFILE:\n{profile_summary}\n\nJOB LISTING:\n{job_summary}\n\nWrite the recommendation explanation:"
+
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "model": "google/gemini-3-flash-preview",
+        "messages": [
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": user_msg}
+        ],
+        "stream": True,
+        "reasoning": {"enabled": False,
+        }
+        #"effort":"low"},
+    }
+
+    accumulated_content = ""
+
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as http_client:
+            async with http_client.stream("POST", url, headers=headers, json=payload) as response:
+                buffer = ""
+                async for chunk in response.aiter_text():
+                    if chunk:
+                        buffer += chunk
+
+                        while True:
+                            line_end = buffer.find('\n')
+                            if line_end == -1:
+                                break
+
+                            line = buffer[:line_end].strip()
+                            buffer = buffer[line_end + 1:]
+
+                            if not line or line.startswith(':'):
+                                continue
+
+                            if line.startswith('data: '):
+                                data = line[6:]
+                                if data == '[DONE]':
+                                    final_payload = json.dumps({"type": "final", "text": accumulated_content})
+                                    yield f"data: {final_payload}\n\n"
+                                    yield "data: [DONE]\n\n"
+                                    return
+
+                                try:
+                                    data_obj = json.loads(data)
+                                    delta = data_obj.get("choices", [{}])[0].get("delta", {})
+
+                                    # Reasoning/thinking tokens
+                                    reasoning = delta.get("reasoning") or delta.get("reasoning_content")
+                                    if reasoning:
+                                        payload_out = json.dumps({"type": "thought", "chunk": reasoning})
+                                        yield f"data: {payload_out}\n\n"
+
+                                    # Content tokens
+                                    content = delta.get("content")
+                                    if content:
+                                        accumulated_content += content
+                                        payload_out = json.dumps({"type": "content", "chunk": content})
+                                        yield f"data: {payload_out}\n\n"
+
+                                except json.JSONDecodeError:
+                                    pass
+
+        # Fallback if stream ends without [DONE]
+        if accumulated_content:
+            final_payload = json.dumps({"type": "final", "text": accumulated_content})
+            yield f"data: {final_payload}\n\n"
+        yield "data: [DONE]\n\n"
+
+    except Exception as e:
+        error_payload = json.dumps({"type": "error", "message": str(e)})
+        yield f"data: {error_payload}\n\n"
+
+
+@app.post("/jobs/explain")
+async def explain_job(request: ExplainRequest):
+    """
+    SSE endpoint: streams a 60-80 word explanation of why a job
+    is a good match for the given user profile.
+
+    Send EventSource to this endpoint with a POST body containing
+    `profile` (UserProfile) and `job` (JobMatch).
+    """
+    return StreamingResponse(
+        generate_explanation_stream(request.profile, request.job),
+        media_type="text/event-stream"
+    )
+
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
-
-

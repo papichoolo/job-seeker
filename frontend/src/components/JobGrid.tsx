@@ -1,17 +1,21 @@
 'use client';
 
-import { useMemo } from 'react';
-import { JobMatch } from '@/types';
+import { useState, useMemo } from 'react';
+import { JobMatch, UserProfile } from '@/types';
 import { JobCard } from './JobCard';
+import { JobDetailModal } from './JobDetailModal';
 import { EmptyState } from './EmptyState';
 import { Loader2, Sparkles } from 'lucide-react';
 
 interface JobGridProps {
     jobs: JobMatch[];
     isLoading?: boolean;
+    profile?: UserProfile | null;
 }
 
-export function JobGrid({ jobs, isLoading = false }: JobGridProps) {
+export function JobGrid({ jobs, isLoading = false, profile = null }: JobGridProps) {
+    const [selectedJob, setSelectedJob] = useState<JobMatch | null>(null);
+
     // Calculate min/max scores for relative scoring
     const { minScore, maxScore } = useMemo(() => {
         if (jobs.length === 0) return { minScore: 0, maxScore: 1 };
@@ -61,9 +65,19 @@ export function JobGrid({ jobs, isLoading = false }: JobGridProps) {
                         rank={index + 1}
                         minScore={minScore}
                         maxScore={maxScore}
+                        onClick={() => setSelectedJob(job)}
                     />
                 ))}
             </div>
+
+            {/* Job Detail Modal */}
+            <JobDetailModal
+                job={selectedJob}
+                onClose={() => setSelectedJob(null)}
+                minScore={minScore}
+                maxScore={maxScore}
+                profile={profile}
+            />
         </div>
     );
 }

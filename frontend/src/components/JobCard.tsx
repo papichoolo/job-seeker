@@ -3,16 +3,17 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { JobMatch } from '@/types';
-import { DollarSign, Briefcase, TrendingUp } from 'lucide-react';
+import { DollarSign, Building2, TrendingUp } from 'lucide-react';
 
 interface JobCardProps {
     job: JobMatch;
     rank: number;
     minScore: number;
     maxScore: number;
+    onClick?: () => void;
 }
 
-export function JobCard({ job, rank, minScore, maxScore }: JobCardProps) {
+export function JobCard({ job, rank, minScore, maxScore, onClick }: JobCardProps) {
     // Normalize score to percentage using min-max scaling within result set
     // Maps the score range to 60-99% (top result always close to 99%, worst around 60%)
     const range = maxScore - minScore;
@@ -27,12 +28,15 @@ export function JobCard({ job, rank, minScore, maxScore }: JobCardProps) {
     };
 
     return (
-        <Card className="
+        <Card
+            className="
       group bg-neutral-900/60 border-neutral-800
       hover:bg-neutral-900/80 hover:border-neutral-700
       transition-all duration-300 hover:scale-[1.02]
-      backdrop-blur-sm overflow-hidden
-    ">
+      backdrop-blur-sm overflow-hidden cursor-pointer
+    "
+            onClick={onClick}
+        >
             <CardContent className="p-6">
                 {/* Header with rank and score */}
                 <div className="flex items-start justify-between mb-4">
@@ -54,9 +58,17 @@ export function JobCard({ job, rank, minScore, maxScore }: JobCardProps) {
                 </div>
 
                 {/* Job Title */}
-                <h3 className="text-xl font-semibold text-white mb-3 line-clamp-2">
+                <h3 className="text-xl font-semibold text-white mb-1 line-clamp-2">
                     {job.title || 'Untitled Position'}
                 </h3>
+
+                {/* Company */}
+                {job.company && (
+                    <div className="flex items-center gap-1.5 mb-3">
+                        <Building2 className="w-3.5 h-3.5 text-neutral-400" />
+                        <span className="text-sm text-neutral-400">{job.company}</span>
+                    </div>
+                )}
 
                 {/* Salary Tag */}
                 {job.salary && (
@@ -68,8 +80,8 @@ export function JobCard({ job, rank, minScore, maxScore }: JobCardProps) {
                     </div>
                 )}
 
-                {/* Description / Why We Picked This */}
-                {job.description && (
+                {/* Skills / Why We Picked This */}
+                {job.job_skills && job.job_skills.length > 0 && (
                     <div className="border-t border-neutral-800 pt-4 mt-4">
                         <div className="flex items-center gap-2 mb-2">
                             <TrendingUp className="w-4 h-4 text-neutral-400" />
@@ -77,9 +89,21 @@ export function JobCard({ job, rank, minScore, maxScore }: JobCardProps) {
                                 Why We Picked This
                             </span>
                         </div>
-                        <p className="text-sm text-neutral-300 line-clamp-3 leading-relaxed">
-                            {job.description}
-                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                            {job.job_skills.slice(0, 5).map((skill) => (
+                                <span
+                                    key={skill}
+                                    className="px-2 py-0.5 rounded-full bg-neutral-800 border border-neutral-700 text-neutral-300 text-xs"
+                                >
+                                    {skill}
+                                </span>
+                            ))}
+                            {job.job_skills.length > 5 && (
+                                <span className="px-2 py-0.5 rounded-full bg-neutral-800/50 text-neutral-500 text-xs">
+                                    +{job.job_skills.length - 5} more
+                                </span>
+                            )}
+                        </div>
                     </div>
                 )}
             </CardContent>
