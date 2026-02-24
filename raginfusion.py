@@ -128,8 +128,10 @@ def rerank_jobs(user_profile: dict, candidates: list) -> list:
         m = item.metadata or {}
         final_results.append({
             "job_id": m.get("id"),
+            "company": m.get("company"),
             "title": m.get("Job_Title"),
             "salary": m.get("Annual_Salary_USD"),
+            "job_url": m.get("Job_URL"),
             "score": float(score),
             "description": item.content
         })
@@ -160,14 +162,15 @@ def display_results(jobs: list, top_n: int = 5):
     )
     
     table.add_column("#", style="dim", width=3)
+    table.add_column("Company", style="white", min_width=15)
     table.add_column("Job Title", style="cyan", min_width=25)
     table.add_column("Salary", justify="right", style="green")
     table.add_column("Score", justify="center", style="yellow")
     
     for i, job in enumerate(jobs[:top_n], 1):
-        salary = f"${job['salary']:,}" if job['salary'] else "N/A"
+        salary = f"${job['salary']:,}" if job.get('salary') else "N/A"
         score = f"{job['score']:.3f}"
-        table.add_row(str(i), job['title'] or "N/A", salary, score)
+        table.add_row(str(i), job.get('company') or "N/A", job['title'] or "N/A", salary, score)
     
     console.print()
     console.print(table)

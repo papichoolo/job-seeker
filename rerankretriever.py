@@ -40,10 +40,11 @@ driver = GraphDatabase.driver(URI, auth=AUTH)
 # based on exact skill intersections and experience alignment.
 retrieval_query = """
 MATCH (node)-[:REQUIRES_SKILL]->(s:Skill)
-WITH node, score, collect(s.name) AS jobSkills
-WHERE ANY(skill IN jobSkills WHERE skill IN $user_skills)
+OPTIONAL MATCH (node)-[:POSTED_BY]->(c:Company)
+WITH node, score, collect(s.name) AS jobSkills, c.name AS companyName
+WHERE ANY(skill IN jobSkills WHERE toLower(skill) IN [us IN $user_skills | toLower(us)])
 RETURN node.Job_Description AS content, 
-       node { .Job_Title, .Annual_Salary_USD, .id, jobSkills: jobSkills } AS metadata, 
+       node { .Job_Title, .Annual_Salary_USD, .id, .Job_URL, company: companyName, jobSkills: jobSkills } AS metadata, 
        score
 """
 

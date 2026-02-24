@@ -66,11 +66,13 @@ class ProfileResponse(BaseModel):
 
 
 class JobMatch(BaseModel):
-    job_id: Optional[str]
-    title: Optional[str]
-    salary: Optional[int]
+    job_id: Optional[str] = None
+    company: Optional[str] = None
+    title: Optional[str] = None
+    salary: Optional[int] = None
+    job_url: Optional[str] = None
     score: float
-    description: Optional[str]
+    description: Optional[str] = None
 
 
 class JobMatchResponse(BaseModel):
@@ -150,8 +152,10 @@ def get_top_jobs(user_profile: dict, top_k: int = 20, top_n: int = 10) -> list:
         m = item.metadata or {}
         final_results.append({
             "job_id": m.get("id"),
+            "company": m.get("company"),
             "title": m.get("Job_Title"),
             "salary": m.get("Annual_Salary_USD"),
+            "job_url": m.get("Job_URL"),
             "score": float(score),
             "description": item.content
         })
@@ -220,6 +224,7 @@ async def match_jobs(profile: UserProfile):
     try:
         profile_dict = profile.model_dump()
         top_jobs = get_top_jobs(profile_dict)
+        print(top_jobs)
         
         return JobMatchResponse(
             success=True,
@@ -257,7 +262,7 @@ async def generate_profile_stream(resume_text: str, session_id: str) -> AsyncGen
     }
     
     payload = {
-        "model": "allenai/olmo-3.1-32b-think",
+        "model": "google/gemini-3-flash-preview",
         "messages": [
             {"role": "system", "content": prompt},
             {"role": "user", "content": resume_text}
