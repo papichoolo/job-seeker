@@ -28,19 +28,3 @@ services:
       - key: NODE_ENV
         value: production
 
-  # 3. ETL Job (Runs periodically)
-  - type: cron
-    name: job-seeker-etl
-    env: python
-    buildCommand: "pip install -r requirements.txt"
-    schedule: "0 0 * * *" # Runs daily at midnight UTC
-    command: "python etl_jobs.py"
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.0
-      - key: URI
-        sync: false
-      - key: USERNAME
-        sync: false
-      - key: PASSWORD
-        sync: false
