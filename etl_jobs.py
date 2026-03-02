@@ -13,7 +13,8 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 
 from neo4j import GraphDatabase
-from neo4j_graphrag.embeddings import SentenceTransformerEmbeddings
+# from neo4j_graphrag.embeddings import SentenceTransformerEmbeddings
+from openroutercustom import OpenRouterEmbeddings
 
 # Load environment variables
 load_dotenv(override=True)
@@ -479,11 +480,11 @@ def run_pipeline():
     ]
     fetched_internshala = []
     for cat in internshala_categories:
-        if len(fetched_internshala) >= 100:
+        if len(fetched_internshala) >= 50:
             break
         fetched_internshala.extend(scrape_internshala(cat, pages=1))
         
-    all_jobs.extend(fetched_internshala[:100])
+    all_jobs.extend(fetched_internshala[:50])
         
     logger.info(f"Total jobs extracted: {len(all_jobs)}")
     
@@ -493,7 +494,8 @@ def run_pipeline():
 
     # 2. TRANSFORM & LOAD
     try:
-        embedder = SentenceTransformerEmbeddings(model="all-MiniLM-L6-v2")
+        # embedder = SentenceTransformerEmbeddings(model="all-MiniLM-L6-v2")
+        embedder = OpenRouterEmbeddings()
     except Exception as e:
         logger.error(f"Failed to load sentence transformers: {e}")
         return {"status": "FAILED", "error": str(e)}

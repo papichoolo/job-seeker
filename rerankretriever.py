@@ -3,15 +3,17 @@ from neo4j_graphrag.retrievers import VectorCypherRetriever
 from neo4j_graphrag.generation import GraphRAG
 from sentence_transformers import CrossEncoder
 import os
-from neo4j_graphrag.embeddings import SentenceTransformerEmbeddings
+# from neo4j_graphrag.embeddings import SentenceTransformerEmbeddings
+from openroutercustom import OpenRouterEmbeddings
 
 # 1. Initialize a Cross-Encoder Reranker
-reranker = CrossEncoder('BAAI/bge-reranker-base')
+reranker = CrossEncoder('cross-encoder/ms-marco-TinyBERT-L2-v2')
 from neo4j import GraphDatabase
 #from lol import URI, AUTH, embedder
 URI=os.getenv("URI")
 AUTH=(os.getenv("USERNAME"),os.getenv("PASSWORD"))
-embedder=SentenceTransformerEmbeddings(model="all-MiniLM-L6-v2")
+# embedder=SentenceTransformerEmbeddings(model="all-MiniLM-L6-v2")
+embedder = OpenRouterEmbeddings()
 from neo4j_graphrag.generation import RagTemplate
 
 class JobRerankTemplate(RagTemplate):

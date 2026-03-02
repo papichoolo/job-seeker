@@ -40,3 +40,22 @@ class OpenRouterLLM(LLMInterface):
         messages = self._prepare_messages(input, message_history, system_instruction)
         response = await self.client.ainvoke(messages)
         return LLMResponse(content=str(response.content))
+
+from openai import OpenAI
+import os
+
+class OpenRouterEmbeddings:
+    def __init__(self):
+        self.client = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=os.environ.get("OPENROUTER_API_KEY")
+        )
+        self.model = "sentence-transformers/paraphrase-minilm-l6-v2"
+
+    def embed_query(self, text: str) -> List[float]:
+        response = self.client.embeddings.create(
+            model=self.model,
+            input=text,
+            encoding_format="float"
+        )
+        return response.data[0].embedding
