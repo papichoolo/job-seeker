@@ -13,19 +13,21 @@ import os
 import json
 import tempfile
 import uuid
+import threading
 from typing import List, Optional, AsyncGenerator
 from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
 import pdfplumber
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Header
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from openai import OpenAI
 
 from rerankretriever import retriever, reranker
+from etl_jobs import run_pipeline
 
 # Initialize app and client
 app = FastAPI(
@@ -53,6 +55,9 @@ client = OpenAI(
 # In production, use Redis with expiration
 SESSION_STORAGE = {}
 RESULT_STORAGE = {}  # Stores final parsed JSON results
+
+# Lock to prevent overlapping ETL pipeline runs
+etl_lock = threading.Lock()
 
 
 # ========== Pydantic Models ==========
@@ -576,6 +581,29 @@ async def explain_job(request: ExplainRequest):
         generate_explanation_stream(request.profile, request.job),
         media_type="text/event-stream"
     )
+
+
+@app.get("/internal/run-etl")
+@app.post("/internal/run-etl")
+def trigger_etl(x_etl_secret: Optional[str] = Header(None, alias="X-ETL-Secret")):
+    """
+    Endpoint to trigger the ETL pipeline. Protected by X-ETL-Secret header.
+    """
+    expected_secret = os.getenv("ETL_SECRET")
+    if not expected_secret or x_etl_secret != expected_secret:
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid or missing X-ETL-Secret header")
+        
+    if not etl_lock.acquire(blocking=False):
+        return {"status": "skipped", "message": "ETL job is already actively running."}
+        
+    try:
+        # run_pipeline is synchronous and may take 30-60s.
+        summary = run_pipeline()
+        return {"status": "completed", "summary": summary}
+    except Exception as e:
+        return {"status": "failed", "error": str(e)}
+    finally:
+        etl_lock.release()
 
 
 if __name__ == "__main__":

@@ -489,18 +489,18 @@ def run_pipeline():
     
     if not all_jobs:
         logger.warning("No jobs extracted. Exiting pipeline.")
-        return
+        return {"status": "SKIPPED", "message": "No jobs extracted", "processed": 0}
 
     # 2. TRANSFORM & LOAD
     try:
         embedder = SentenceTransformerEmbeddings(model="all-MiniLM-L6-v2")
     except Exception as e:
         logger.error(f"Failed to load sentence transformers: {e}")
-        return
+        return {"status": "FAILED", "error": str(e)}
 
     if not URI or not NEO4J_PASSWORD:
         logger.error("Neo4j database credentials (URI, PASSWORD) are missing in environment.")
-        return
+        return {"status": "FAILED", "error": "Missing Neo4j credentials"}
 
     logger.info("Connecting to Neo4j database...")
     driver = GraphDatabase.driver(URI, auth=AUTH)
@@ -540,6 +540,14 @@ def run_pipeline():
         
     driver.close()
     logger.info(f"ETL Pipeline complete. Run ID: {run_id}. Processed: {processed_count}.")
+    
+    return {
+        "run_id": run_id,
+        "status": status,
+        "processed": processed_count,
+        "deleted": deleted_count,
+        "errors_count": len(errors)
+    }
 
 if __name__ == "__main__":
     run_pipeline()

@@ -1,0 +1,46 @@
+services:
+  # 1. Backend REST API
+  - type: web
+    name: job-seeker-api
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn api:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: URI
+        sync: false
+      - key: USERNAME
+        sync: false
+      - key: PASSWORD
+        sync: false
+
+  # 2. Frontend Next.js app
+  - type: web
+    name: job-seeker-frontend
+    env: node
+    rootDir: frontend
+    buildCommand: "npm ci && npm run build"
+    startCommand: "npm run start"
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+  # 3. ETL Job (Runs periodically)
+  - type: cron
+    name: job-seeker-etl
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    schedule: "0 0 * * *" # Runs daily at midnight UTC
+    command: "python etl_jobs.py"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: URI
+        sync: false
+      - key: USERNAME
+        sync: false
+      - key: PASSWORD
+        sync: false

@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+pdfplumber
+pydantic
+openai
+python-dotenv
+httpx
+beautifulsoup4
+lxml
+neo4j
+neo4j-graphrag
+sentence-transformers
+python-multipart
