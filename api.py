@@ -1,8 +1,12 @@
 """
 FastAPI Application for Job Matching Pipeline
 Endpoints:
-  - POST /profile: Upload PDF and extract user profile
-  - POST /jobs/match: Get top 5 jobs for a user profile
+  - POST /profile: Upload PDF and extract user profile (Legacy)
+  - POST /jobs/match: Get top job matches for a user profile
+  - POST /upload: Upload PDF, extract text, return session_id
+  - GET /stream/{session_id}: Stream profile extraction (SSE)
+  - GET /result/{session_id}: Get final extracted profile
+  - POST /jobs/explain: Stream job match explanation (SSE)
 """
 
 import os
