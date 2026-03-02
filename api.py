@@ -27,7 +27,6 @@ from pydantic import BaseModel
 from openai import OpenAI
 
 from rerankretriever import retriever, reranker
-from etl_jobs import run_pipeline
 
 # Initialize app and client
 app = FastAPI(
@@ -597,6 +596,7 @@ def trigger_etl(x_etl_secret: Optional[str] = Header(None, alias="X-ETL-Secret")
         return {"status": "skipped", "message": "ETL job is already actively running."}
         
     try:
+        from etl_jobs import run_pipeline
         # run_pipeline is synchronous and may take 30-60s.
         summary = run_pipeline()
         return {"status": "completed", "summary": summary}
