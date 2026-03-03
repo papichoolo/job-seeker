@@ -22,6 +22,8 @@ import {
     Loader2,
 } from 'lucide-react';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 interface JobDetailModalProps {
     job: JobMatch | null;
     onClose: () => void;
@@ -54,7 +56,7 @@ export function JobDetailModal({ job, onClose, minScore, maxScore, profile }: Jo
 
         (async () => {
             try {
-                const res = await fetch('http://localhost:8000/jobs/explain', {
+                const res = await fetch(`${API_BASE_URL}/jobs/explain`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ profile, job }),

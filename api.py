@@ -436,7 +436,12 @@ async def stream_profile(session_id: str):
 
     return StreamingResponse(
         generate_profile_stream(resume_text, session_id),
-        media_type="text/event-stream"
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        }
     )
 
 
@@ -565,7 +570,9 @@ async def generate_explanation_stream(profile: UserProfile, job: JobMatch) -> As
     except Exception as e:
         error_payload = json.dumps({"type": "error", "message": str(e)})
         yield f"data: {error_payload}\n\n"
-
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 @app.post("/jobs/explain")
 async def explain_job(request: ExplainRequest):
@@ -578,7 +585,12 @@ async def explain_job(request: ExplainRequest):
     """
     return StreamingResponse(
         generate_explanation_stream(request.profile, request.job),
-        media_type="text/event-stream"
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        }
     )
 
 

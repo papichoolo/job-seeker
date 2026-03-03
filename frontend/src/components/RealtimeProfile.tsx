@@ -1,6 +1,8 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 interface ProfileData {
     skills: string[];
     experience_years: number;
@@ -44,7 +46,7 @@ export default function RealtimeProfile() {
         formData.append("file", file);
 
         try {
-            const uploadRes = await fetch("http://localhost:8000/upload", {
+            const uploadRes = await fetch(`${API_BASE_URL}/upload`, {
                 method: "POST",
                 body: formData,
             });
@@ -52,7 +54,7 @@ export default function RealtimeProfile() {
 
             // 2. Open the Stream
             setStatus("processing");
-            const eventSource = new EventSource(`http://localhost:8000/stream/${session_id}`);
+            const eventSource = new EventSource(`${API_BASE_URL}/stream/${session_id}`);
 
             eventSource.onmessage = (event) => {
                 if (event.data === "[DONE]") {
