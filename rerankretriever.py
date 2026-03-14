@@ -18,12 +18,60 @@ _retriever = None
 _driver = None
 
 
+class CohereReranker:
+    """Mock Reranker that uses Cohere's API but matches the sentence_transformers Interface."""
+    def __init__(self):
+        import os
+        import httpx
+        # Check both lower and upper case keys based on the .env
+        self.api_key = os.getenv("cohereapikey") or os.getenv("COHERE_API_KEY")
+        if not self.api_key:
+            print("WARNING: COHERE API KEY NOT SET")
+        self.client = httpx.Client()
+        
+    def predict(self, pairs):
+        if not pairs:
+            return []
+            
+        query = pairs[0][0]
+        documents = [p[1] for p in pairs]
+        
+        try:
+            response = self.client.post(
+                "https://api.cohere.com/v1/rerank",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "rerank-english-v3.0",
+                    "query": query,
+                    "documents": documents,
+                    "top_n": len(documents)
+                },
+                timeout=30.0
+            )
+            
+            if response.status_code == 200:
+                results = response.json().get("results", [])
+                scores = [0.0] * len(pairs)
+                for res in results:
+                    scores[res["index"]] = res["relevance_score"]
+                return scores
+            else:
+                print("Cohere Rerank API Error:", response.text)
+        except Exception as e:
+            print("Cohere Rerank Exception:", str(e))
+            
+        # Fallback scores if Cohere fails (descending order based on vector search rank)
+        return [0.99 - (i * 0.01) for i in range(len(pairs))]
+
+
 def get_reranker():
-    """Lazily load the CrossEncoder reranker model."""
+    """Lazily load the Cohere API alternative to the CrossEncoder reranker model."""
     global _reranker
     if _reranker is None:
-        from sentence_transformers import CrossEncoder
-        _reranker = CrossEncoder('cross-encoder/ms-marco-TinyBERT-L2-v2')
+        _reranker = CohereReranker()
     return _reranker
 
 

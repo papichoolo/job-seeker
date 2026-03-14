@@ -39,9 +39,10 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 client = OpenAI(
@@ -438,9 +439,11 @@ async def stream_profile(session_id: str):
         generate_profile_stream(resume_text, session_id),
         media_type="text/event-stream",
         headers={
-            "Cache-Control": "no-cache",
+            "Cache-Control": "no-cache, no-transform",
             "X-Accel-Buffering": "no",
             "Connection": "keep-alive",
+            "Content-Encoding": "identity",
+            "X-Content-Type-Options": "nosniff",
         }
     )
 
@@ -587,9 +590,11 @@ async def explain_job(request: ExplainRequest):
         generate_explanation_stream(request.profile, request.job),
         media_type="text/event-stream",
         headers={
-            "Cache-Control": "no-cache",
+            "Cache-Control": "no-cache, no-transform",
             "X-Accel-Buffering": "no",
             "Connection": "keep-alive",
+            "Content-Encoding": "identity",
+            "X-Content-Type-Options": "nosniff",
         }
     )
 

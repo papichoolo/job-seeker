@@ -60,48 +60,80 @@ export async function uploadResumeSSE(file: File, callbacks: SSECallbacks): Prom
 
     const { session_id } = await uploadResponse.json();
 
-    // Step 2: Open SSE stream
-    const eventSource = new EventSource(`${API_BASE_URL}/stream/${session_id}`);
+    // Step 2: Open SSE stream using fetch + ReadableStream (more robust than EventSource through proxies)
+    const abortController = new AbortController();
 
-    eventSource.onmessage = (event) => {
-        if (event.data === '[DONE]') {
-            eventSource.close();
-            return;
-        }
-
+    (async () => {
         try {
-            const parsed = JSON.parse(event.data);
+            const streamResponse = await fetch(`${API_BASE_URL}/stream/${session_id}`, {
+                signal: abortController.signal,
+                headers: {
+                    'Accept': 'text/event-stream',
+                },
+            });
 
-            if (parsed.type === 'thought') {
-                callbacks.onThinking?.(parsed.chunk);
-            } else if (parsed.type === 'content') {
-                callbacks.onContent?.(parsed.chunk);
-            } else if (parsed.type === 'final') {
-                const finalData = parsed.data || parsed.raw;
-                if (typeof finalData === 'object') {
-                    callbacks.onComplete(finalData as UserProfile);
-                } else {
-                    // Try to parse raw string
+            if (!streamResponse.ok || !streamResponse.body) {
+                callbacks.onError('Failed to connect to stream');
+                return;
+            }
+
+            const reader = streamResponse.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+
+                // Process complete SSE lines
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    const trimmed = line.trim();
+                    if (!trimmed || !trimmed.startsWith('data: ')) continue;
+
+                    const data = trimmed.slice(6);
+                    if (data === '[DONE]') {
+                        return;
+                    }
+
                     try {
-                        callbacks.onComplete(JSON.parse(finalData) as UserProfile);
-                    } catch {
-                        callbacks.onError('Invalid profile data received');
+                        const parsed = JSON.parse(data);
+
+                        if (parsed.type === 'thought') {
+                            callbacks.onThinking?.(parsed.chunk);
+                        } else if (parsed.type === 'content') {
+                            callbacks.onContent?.(parsed.chunk);
+                        } else if (parsed.type === 'final') {
+                            const finalData = parsed.data || parsed.raw;
+                            if (typeof finalData === 'object') {
+                                callbacks.onComplete(finalData as UserProfile);
+                            } else {
+                                try {
+                                    callbacks.onComplete(JSON.parse(finalData) as UserProfile);
+                                } catch {
+                                    callbacks.onError('Invalid profile data received');
+                                }
+                            }
+                        } else if (parsed.type === 'error') {
+                            callbacks.onError(parsed.message);
+                        }
+                    } catch (err) {
+                        console.error('SSE parse error:', err);
                     }
                 }
-            } else if (parsed.type === 'error') {
-                callbacks.onError(parsed.message);
             }
         } catch (err) {
-            console.error('SSE parse error:', err);
+            if ((err as Error).name !== 'AbortError') {
+                callbacks.onError('Connection lost during processing');
+            }
         }
-    };
-
-    eventSource.onerror = () => {
-        eventSource.close();
-        callbacks.onError('Connection lost during processing');
-    };
+    })();
 
     // Return cleanup function
-    return () => eventSource.close();
+    return () => abortController.abort();
 }
 
