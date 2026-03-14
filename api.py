@@ -293,7 +293,7 @@ async def generate_profile_stream(resume_text: str, session_id: str) -> AsyncGen
     }
     
     payload = {
-        "model": "google/gemini-3-flash-preview",
+        "model": "openai/gpt-oss-20b:nitro",
         "messages": [
             {"role": "system", "content": prompt},
             {"role": "user", "content": resume_text}
@@ -504,7 +504,7 @@ async def generate_explanation_stream(profile: UserProfile, job: JobMatch) -> As
     }
 
     payload = {
-        "model": "google/gemini-3-flash-preview",
+        "model": "google/gemini-3.1-flash-lite-preview",
         "messages": [
             {"role": "system", "content": prompt},
             {"role": "user", "content": user_msg}
