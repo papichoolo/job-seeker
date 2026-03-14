@@ -48,7 +48,7 @@ class OpenRouterEmbeddings:
     def __init__(self):
         self.client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
-            api_key=os.environ.get("OPENROUTER_API_KEY")
+            api_key=os.environ.get("OPENROUTER_API_KEY") or os.environ.get("OPENAI_API_KEY")
         )
         self.model = "sentence-transformers/paraphrase-minilm-l6-v2"
 

@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 import pdfplumber
-from fastapi import FastAPI, UploadFile, File, HTTPException, Header
+from fastapi import FastAPI, UploadFile, File, HTTPException, Header, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -599,11 +599,22 @@ async def explain_job(request: ExplainRequest):
     )
 
 
+def run_etl_background():
+    """Background task to run the ETL and release the lock."""
+    try:
+        from etl_jobs import run_pipeline
+        run_pipeline()
+    except Exception as e:
+        print(f"Background ETL Error: {e}")
+    finally:
+        etl_lock.release()
+
 @app.get("/internal/run-etl")
 @app.post("/internal/run-etl")
-def trigger_etl(x_etl_secret: Optional[str] = Header(None, alias="X-ETL-Secret")):
+def trigger_etl(background_tasks: BackgroundTasks, x_etl_secret: Optional[str] = Header(None, alias="X-ETL-Secret")):
     """
     Endpoint to trigger the ETL pipeline. Protected by X-ETL-Secret header.
+    Runs in the background to avoid timeouts.
     """
     expected_secret = os.getenv("ETL_SECRET")
     if not expected_secret or x_etl_secret != expected_secret:
@@ -612,15 +623,13 @@ def trigger_etl(x_etl_secret: Optional[str] = Header(None, alias="X-ETL-Secret")
     if not etl_lock.acquire(blocking=False):
         return {"status": "skipped", "message": "ETL job is already actively running."}
         
-    try:
-        from etl_jobs import run_pipeline
-        # run_pipeline is synchronous and may take 30-60s.
-        summary = run_pipeline()
-        return {"status": "completed", "summary": summary}
-    except Exception as e:
-        return {"status": "failed", "error": str(e)}
-    finally:
-        etl_lock.release()
+    # Schedule the task
+    background_tasks.add_task(run_etl_background)
+    
+    return {
+        "status": "accepted", 
+        "message": "ETL pipeline triggered successfully and is running in the background."
+    }
 
 
 if __name__ == "__main__":
