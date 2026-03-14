@@ -8,8 +8,21 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Job Matcher | AI-Powered Job Matching",
-  description: "Upload your resume and find your perfect job match using AI-powered analysis and reranking",
+  title: "Job Seeker | Where Jobs Come to You",
+  description: "Upload your resume and let AI find your perfect job match. Job Seeker uses intelligent profile analysis and smart reranking to bring the best opportunities straight to you.",
+  keywords: ["job search", "AI job matching", "resume parser", "career finder", "job seeker", "AI-powered hiring"],
+  authors: [{ name: "Job Seeker" }],
+  openGraph: {
+    title: "Job Seeker | Where Jobs Come to You",
+    description: "Stop searching. Start matching. Upload your resume and let AI bring the best job opportunities to you.",
+    type: "website",
+    siteName: "Job Seeker",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Job Seeker | Where Jobs Come to You",
+    description: "Stop searching. Start matching. Upload your resume and let AI bring the best job opportunities to you.",
+  },
 };
 
 export default function RootLayout({
