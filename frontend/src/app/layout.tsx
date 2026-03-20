@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
 
 const geistMono = Geist_Mono({
@@ -45,6 +46,7 @@ export default function RootLayout({
         style={{ fontFamily: "'TikTok Sans', sans-serif" }}
       >
         {children}
+        <Analytics />
       </body>
     </html>
   );
